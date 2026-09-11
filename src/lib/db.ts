@@ -1,7 +1,12 @@
 import { createClient } from "@libsql/client";
 
-const url = process.env.TURSO_DATABASE_URL || "file:lembrete.db";
-const authToken = process.env.TURSO_AUTH_TOKEN;
+// On Vercel serverless environment, local filesystem is read-only except /tmp
+const defaultUrl = process.env.VERCEL 
+  ? "file:/tmp/lembrete.db" 
+  : "file:lembrete.db";
+
+const url = process.env.TURSO_DATABASE_URL || defaultUrl;
+const authToken = process.env.TURSO_AUTH_TOKEN || undefined;
 
 export const db = createClient({
   url,
@@ -30,6 +35,6 @@ export async function ensureDbInitialized() {
     `);
     initialized = true;
   } catch (error) {
-    console.error("Erro ao inicializar tabela lembretes no Turso DB:", error);
+    console.error("Aviso ao inicializar tabela lembretes no Turso DB:", error);
   }
 }

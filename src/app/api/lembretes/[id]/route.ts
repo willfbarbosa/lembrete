@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { db, ensureDbInitialized } from "@/lib/db";
 import { Prioridade, CorPostit } from "@/types/lembrete";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
