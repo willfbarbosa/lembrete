@@ -6,7 +6,10 @@ import { HeaderBar } from "@/components/HeaderBar";
 import { StatsBar } from "@/components/StatsBar";
 import { PostItCard } from "@/components/PostItCard";
 import { PostItModal } from "@/components/PostItModal";
-import { StickyNote, Plus, RefreshCw, AlertCircle } from "lucide-react";
+import { StickyNote, Plus, RefreshCw, AlertCircle, Sparkles } from "lucide-react";
+
+const STORAGE_KEY = "eletrozone_lembretes_v1";
+const SEEDED_KEY = "eletrozone_lembretes_seeded_v1";
 
 export default function Home() {
   const [lembretes, setLembretes] = useState<Lembrete[]>([]);
@@ -23,30 +26,18 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLembrete, setEditingLembrete] = useState<Lembrete | null>(null);
 
-  // Fetch all lembretes from API
-  const fetchLembretes = useCallback(async () => {
+  // Sync state to LocalStorage as safety backup
+  const syncToLocalStorage = (data: Lembrete[]) => {
     try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/lembretes");
-      if (!res.ok) throw new Error("Erro ao buscar lembretes");
-      const data = await res.json();
-      
-      // Seed default notes if empty for immediate demo
-      if (Array.isArray(data) && data.length === 0) {
-        await seedDefaultLembretes();
-      } else {
-        setLembretes(data);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }
-    } catch (err: any) {
-      console.error(err);
-      setError("Não foi possível carregar os lembretes do banco Turso DB.");
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error("Erro ao salvar no localStorage:", e);
     }
-  }, []);
+  };
 
-  // Seed default post-its if database is empty
+  // Seed default notes ONLY ONCE on first-ever load
   const seedDefaultLembretes = async () => {
     try {
       const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
@@ -80,24 +71,82 @@ export default function Home() {
         },
       ];
 
+      const createdList: Lembrete[] = [];
       for (const item of defaultItems) {
-        await fetch("/api/lembretes", {
+        const res = await fetch("/api/lembretes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(item),
         });
+        if (res.ok) {
+          const created = await res.json();
+          createdList.push(created);
+        }
       }
 
-      // Re-fetch created items
-      const res = await fetch("/api/lembretes");
-      if (res.ok) {
-        const data = await res.json();
-        setLembretes(data);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(SEEDED_KEY, "true");
       }
+
+      setLembretes(createdList);
+      syncToLocalStorage(createdList);
     } catch (err) {
       console.error("Erro ao popular lembretes padrão:", err);
     }
   };
+
+  // Fetch all lembretes from API & LocalStorage
+  const fetchLembretes = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const isAlreadySeeded = typeof window !== "undefined" && localStorage.getItem(SEEDED_KEY) === "true";
+      const localDataStr = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+
+      const res = await fetch("/api/lembretes");
+      if (!res.ok) throw new Error("Erro ao buscar lembretes da API");
+      const apiData: Lembrete[] = await res.json();
+      
+      if (Array.isArray(apiData) && apiData.length > 0) {
+        setLembretes(apiData);
+        syncToLocalStorage(apiData);
+        if (typeof window !== "undefined") localStorage.setItem(SEEDED_KEY, "true");
+      } else if (localDataStr !== null) {
+        // If API returned empty but local storage has user's state (including empty array when user deleted all items)
+        try {
+          const parsed = JSON.parse(localDataStr);
+          setLembretes(parsed);
+        } catch {
+          setLembretes([]);
+        }
+      } else if (!isAlreadySeeded) {
+        // First-time visit ONLY: seed default notes
+        await seedDefaultLembretes();
+      } else {
+        // User has previously visited and deleted all notes: keep empty!
+        setLembretes([]);
+        syncToLocalStorage([]);
+      }
+    } catch (err: any) {
+      console.error(err);
+      // LocalStorage fallback on error
+      if (typeof window !== "undefined") {
+        const localDataStr = localStorage.getItem(STORAGE_KEY);
+        if (localDataStr) {
+          try {
+            setLembretes(JSON.parse(localDataStr));
+          } catch {
+            setError("Não foi possível carregar os lembretes.");
+          }
+        } else {
+          setError("Não foi possível carregar os lembretes do banco de dados.");
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchLembretes();
@@ -107,21 +156,20 @@ export default function Home() {
   const handleToggleComplete = async (id: string, currentStatus: boolean) => {
     const nextStatus = !currentStatus;
     // Optimistic update
-    setLembretes((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, concluido: nextStatus } : item))
+    const updated = lembretes.map((item) =>
+      item.id === id ? { ...item, concluido: nextStatus } : item
     );
+    setLembretes(updated);
+    syncToLocalStorage(updated);
 
     try {
-      const res = await fetch(`/api/lembretes/${id}`, {
+      await fetch(`/api/lembretes/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ concluido: nextStatus }),
       });
-      if (!res.ok) throw new Error("Erro ao atualizar status");
     } catch (err) {
-      console.error(err);
-      // Revert on error
-      fetchLembretes();
+      console.error("Erro ao atualizar status na API:", err);
     }
   };
 
@@ -134,7 +182,29 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
-      if (!res.ok) throw new Error("Falha ao atualizar o lembrete");
+      
+      let updatedItem: Lembrete;
+      if (res.ok) {
+        updatedItem = await res.json();
+      } else {
+        // Fallback update
+        updatedItem = {
+          id,
+          titulo: input.titulo,
+          conteudo: input.conteudo,
+          prioridade: input.prioridade,
+          data_limite: input.data_limite || null,
+          concluido: false,
+          categoria: input.categoria || "Geral",
+          cor_postit: input.cor_postit || "yellow",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+      }
+
+      const newList = lembretes.map((item) => (item.id === id ? updatedItem : item));
+      setLembretes(newList);
+      syncToLocalStorage(newList);
     } else {
       // Create
       const res = await fetch("/api/lembretes", {
@@ -142,23 +212,53 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
-      if (!res.ok) throw new Error("Falha ao criar o lembrete");
+
+      let newItem: Lembrete;
+      if (res.ok) {
+        newItem = await res.json();
+      } else {
+        // Fallback local creation if API unavailable
+        newItem = {
+          id: crypto.randomUUID(),
+          titulo: input.titulo,
+          conteudo: input.conteudo,
+          prioridade: input.prioridade,
+          data_limite: input.data_limite || null,
+          concluido: false,
+          categoria: input.categoria || "Geral",
+          cor_postit: input.cor_postit || "yellow",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+      }
+
+      const newList = [newItem, ...lembretes];
+      setLembretes(newList);
+      syncToLocalStorage(newList);
     }
-    await fetchLembretes();
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(SEEDED_KEY, "true");
+    }
   };
 
   // Delete
   const handleDeleteLembrete = async (id: string) => {
-    // Optimistic remove
-    setLembretes((prev) => prev.filter((item) => item.id !== id));
+    // Remove item and persist immediately
+    const newList = lembretes.filter((item) => item.id !== id);
+    setLembretes(newList);
+    syncToLocalStorage(newList);
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(SEEDED_KEY, "true");
+    }
+
     try {
-      const res = await fetch(`/api/lembretes/${id}`, {
+      await fetch(`/api/lembretes/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Erro ao excluir lembrete");
     } catch (err) {
-      console.error(err);
-      fetchLembretes();
+      console.error("Erro ao excluir lembrete na API:", err);
     }
   };
 
@@ -229,7 +329,7 @@ export default function Home() {
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 text-amber-900/60">
             <RefreshCw className="w-8 h-8 animate-spin mb-3 text-amber-600" />
-            <p className="text-sm font-semibold">Carregando seus Post-its do Turso DB...</p>
+            <p className="text-sm font-semibold">Carregando seus Post-its...</p>
           </div>
         )}
 
@@ -261,13 +361,23 @@ export default function Home() {
                 ? "Tente ajustar seus filtros de busca ou prioridade."
                 : "Você ainda não criou nenhum lembrete no quadro."}
             </p>
-            <button
-              onClick={handleOpenNewModal}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Criar Novo Lembrete</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleOpenNewModal}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Criar Novo Lembrete</span>
+              </button>
+              <button
+                onClick={seedDefaultLembretes}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs rounded-xl transition-all"
+                title="Inserir post-its de exemplo"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>Exemplos</span>
+              </button>
+            </div>
           </div>
         )}
 
