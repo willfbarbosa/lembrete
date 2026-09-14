@@ -13,6 +13,14 @@ export const metadata: Metadata = {
   description: "Gerenciador de lembretes e tarefas em estilo Post-it com prioridades por cores e datas limites. Hospedado em lembrete.eletrozone.net.br",
   keywords: ["lembrete", "post-it", "le postiche", "tarefas", "eletrozone", "organizador"],
   authors: [{ name: "Eletrozone Team" }],
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/logo.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -21,8 +29,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${jakarta.variable}`}>
-      <body className="min-h-screen flex flex-col font-sans antialiased text-gray-900 bg-[#f4ece1]">
+    <html lang="pt-BR" className={`${jakarta.variable} dark`}>
+      <body className="min-h-screen flex flex-col font-sans antialiased text-zinc-100 bg-[#09090b]">
         {children}
       </body>
     </html>

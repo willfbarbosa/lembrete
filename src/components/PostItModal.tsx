@@ -35,7 +35,6 @@ export const PostItModal: React.FC<PostItModalProps> = ({
       setCorPostit(editingLembrete.cor_postit || "yellow");
       
       if (editingLembrete.data_limite) {
-        // Convert ISO date to datetime-local format string (YYYY-MM-DDTHH:mm)
         const d = new Date(editingLembrete.data_limite);
         if (!isNaN(d.getTime())) {
           const tzOffset = d.getTimezoneOffset() * 60000;
@@ -48,7 +47,6 @@ export const PostItModal: React.FC<PostItModalProps> = ({
         setDataLimite("");
       }
     } else {
-      // Defaults for new note
       setTitulo("");
       setConteudo("");
       setPrioridade("baixa");
@@ -91,7 +89,6 @@ export const PostItModal: React.FC<PostItModalProps> = ({
     }
   };
 
-  // Quick Preset Helper for Due Dates
   const setQuickDate = (hoursFromNow: number) => {
     const target = new Date(Date.now() + hoursFromNow * 3600 * 1000);
     const tzOffset = target.getTimezoneOffset() * 60000;
@@ -100,31 +97,31 @@ export const PostItModal: React.FC<PostItModalProps> = ({
   };
 
   const paperColors: { key: CorPostit; name: string; bgClass: string }[] = [
-    { key: "yellow", name: "Amarelo", bgClass: "bg-yellow-200 border-yellow-400" },
-    { key: "pink", name: "Rosa", bgClass: "bg-pink-200 border-pink-400" },
-    { key: "blue", name: "Azul", bgClass: "bg-sky-200 border-sky-400" },
-    { key: "green", name: "Verde", bgClass: "bg-emerald-200 border-emerald-400" },
-    { key: "purple", name: "Roxo", bgClass: "bg-purple-200 border-purple-400" },
-    { key: "orange", name: "Laranja", bgClass: "bg-amber-200 border-amber-400" },
+    { key: "yellow", name: "Amarelo", bgClass: "bg-yellow-500 border-yellow-300" },
+    { key: "pink", name: "Rosa", bgClass: "bg-pink-500 border-pink-300" },
+    { key: "blue", name: "Azul", bgClass: "bg-sky-500 border-sky-300" },
+    { key: "green", name: "Verde", bgClass: "bg-emerald-500 border-emerald-300" },
+    { key: "purple", name: "Roxo", bgClass: "bg-purple-500 border-purple-300" },
+    { key: "orange", name: "Laranja", bgClass: "bg-orange-500 border-orange-300" },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-lg bg-[#fffdfa] rounded-2xl shadow-2xl border border-amber-200/60 overflow-hidden flex flex-col max-h-[90vh]"
+        className="relative w-full max-w-lg bg-[#121215] rounded-3xl shadow-[0_0_50px_rgba(239,68,68,0.2)] border border-red-900/40 overflow-hidden flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white">
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-600 to-rose-700 text-white">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5" />
-            <h2 className="text-xl font-bold">
+            <Sparkles className="w-5 h-5 text-red-200" />
+            <h2 className="text-lg font-bold">
               {editingLembrete ? "Editar Post-it" : "Novo Post-it Le Postiche"}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full hover:bg-white/20 text-white transition-colors"
+            className="p-1 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
             title="Fechar"
           >
             <X className="w-6 h-6" />
@@ -134,104 +131,104 @@ export const PostItModal: React.FC<PostItModalProps> = ({
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5">
           {errorMsg && (
-            <div className="flex items-center gap-2 p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="flex items-center gap-2 p-3 text-xs text-red-300 bg-red-950/60 border border-red-600/50 rounded-xl">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Title input */}
+          {/* Title */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1">
               Título do Lembrete *
             </label>
             <input
               type="text"
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Ex: Comprar materiais de escritório..."
-              className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-semibold transition-all"
+              placeholder="Ex: Manutenção de equipamento..."
+              className="w-full px-4 py-2.5 text-white bg-zinc-900 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm font-semibold transition-all placeholder:text-zinc-600"
               required
               autoFocus
             />
           </div>
 
-          {/* Content textarea */}
+          {/* Content */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1">
               Conteúdo / Detalhes
             </label>
             <textarea
               value={conteudo}
               onChange={(e) => setConteudo(e.target.value)}
-              placeholder="Adicione notas, links ou detalhes importantes..."
+              placeholder="Adicione observações ou tarefas..."
               rows={3}
-              className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm transition-all resize-none"
+              className="w-full px-4 py-2.5 text-white bg-zinc-900 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm transition-all resize-none placeholder:text-zinc-600"
             />
           </div>
 
-          {/* Priority selector (Verde, Laranja, Vermelho) */}
+          {/* Priority selector */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
               Prioridade *
             </label>
             <div className="grid grid-cols-3 gap-2.5">
               <button
                 type="button"
                 onClick={() => setPrioridade("baixa")}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all text-xs font-bold ${
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-xs font-bold cursor-pointer ${
                   prioridade === "baixa"
-                    ? "bg-emerald-100 border-emerald-500 text-emerald-900 ring-2 ring-emerald-400/50 scale-105 shadow-sm"
-                    : "bg-emerald-50/50 border-emerald-200 text-emerald-700 hover:bg-emerald-100/60"
+                    ? "bg-emerald-950/80 border-emerald-500 text-emerald-300 ring-2 ring-emerald-500/50 shadow-sm"
+                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800"
                 }`}
               >
                 <span className="text-base mb-0.5">🟢</span>
                 <span>Verde</span>
-                <span className="text-[10px] font-normal text-emerald-600">Baixa Prioridade</span>
+                <span className="text-[10px] font-normal text-emerald-400">Baixa Prioridade</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setPrioridade("media")}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all text-xs font-bold ${
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-xs font-bold cursor-pointer ${
                   prioridade === "media"
-                    ? "bg-amber-100 border-amber-500 text-amber-900 ring-2 ring-amber-400/50 scale-105 shadow-sm"
-                    : "bg-amber-50/50 border-amber-200 text-amber-700 hover:bg-amber-100/60"
+                    ? "bg-amber-950/80 border-amber-500 text-amber-300 ring-2 ring-amber-500/50 shadow-sm"
+                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800"
                 }`}
               >
                 <span className="text-base mb-0.5">🟠</span>
                 <span>Laranja</span>
-                <span className="text-[10px] font-normal text-amber-600">Média Prioridade</span>
+                <span className="text-[10px] font-normal text-amber-400">Média Prioridade</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setPrioridade("alta")}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all text-xs font-bold ${
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-xs font-bold cursor-pointer ${
                   prioridade === "alta"
-                    ? "bg-rose-100 border-rose-500 text-rose-900 ring-2 ring-rose-400/50 scale-105 shadow-sm"
-                    : "bg-rose-50/50 border-rose-200 text-rose-700 hover:bg-rose-100/60"
+                    ? "bg-rose-950/80 border-rose-500 text-rose-300 ring-2 ring-rose-500/50 shadow-sm"
+                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800"
                 }`}
               >
                 <span className="text-base mb-0.5">🔴</span>
                 <span>Vermelho</span>
-                <span className="text-[10px] font-normal text-rose-600">Alta Prioridade</span>
+                <span className="text-[10px] font-normal text-rose-400">Alta Prioridade</span>
               </button>
             </div>
           </div>
 
-          {/* Due date picker (Data Limite) */}
+          {/* Due date picker */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-amber-600" />
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-red-500" />
                 Data Limite para Finalizar
               </label>
               {dataLimite && (
                 <button
                   type="button"
                   onClick={() => setDataLimite("")}
-                  className="text-xs text-red-600 hover:underline"
+                  className="text-xs text-red-400 hover:underline cursor-pointer"
                 >
                   Limpar data
                 </button>
@@ -241,43 +238,42 @@ export const PostItModal: React.FC<PostItModalProps> = ({
               type="datetime-local"
               value={dataLimite}
               onChange={(e) => setDataLimite(e.target.value)}
-              className="w-full px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-medium transition-all"
+              className="w-full px-4 py-2 text-white bg-zinc-900 border border-zinc-800 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm font-medium transition-all"
             />
             {/* Quick date presets */}
             <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 text-xs">
-              <span className="text-gray-600 text-[11px] font-medium flex items-center gap-1 shrink-0">
-                <Clock className="w-3 h-3 text-amber-600" /> Atalhos:
+              <span className="text-zinc-500 text-[11px] font-medium flex items-center gap-1 shrink-0">
+                <Clock className="w-3 h-3 text-red-500" /> Atalhos:
               </span>
               <button
                 type="button"
                 onClick={() => setQuickDate(4)}
-                className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md hover:bg-amber-200 transition-colors text-[11px] shrink-0"
+                className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded-md hover:bg-zinc-700 text-[11px] shrink-0 cursor-pointer"
               >
                 Hoje +4h
               </button>
               <button
                 type="button"
                 onClick={() => setQuickDate(24)}
-                className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md hover:bg-amber-200 transition-colors text-[11px] shrink-0"
+                className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded-md hover:bg-zinc-700 text-[11px] shrink-0 cursor-pointer"
               >
                 Amanhã
               </button>
               <button
                 type="button"
                 onClick={() => setQuickDate(72)}
-                className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md hover:bg-amber-200 transition-colors text-[11px] shrink-0"
+                className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded-md hover:bg-zinc-700 text-[11px] shrink-0 cursor-pointer"
               >
                 Em 3 dias
               </button>
             </div>
           </div>
 
-          {/* Post-it Paper Color & Category Row */}
+          {/* Paper Color & Category Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Post-it Color Picker */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1 flex items-center gap-1">
-                <Palette className="w-3.5 h-3.5 text-amber-600" /> Cor do Papel
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1 flex items-center gap-1">
+                <Palette className="w-3.5 h-3.5 text-red-500" /> Cor do Post-it
               </label>
               <div className="flex items-center gap-2 pt-1">
                 {paperColors.map((color) => (
@@ -286,23 +282,22 @@ export const PostItModal: React.FC<PostItModalProps> = ({
                     type="button"
                     onClick={() => setCorPostit(color.key)}
                     title={color.name}
-                    className={`w-7 h-7 rounded-full border-2 transition-transform ${color.bgClass} ${
-                      corPostit === color.key ? "scale-125 ring-2 ring-amber-500 shadow-sm" : "hover:scale-110"
+                    className={`w-7 h-7 rounded-full border-2 transition-transform cursor-pointer ${color.bgClass} ${
+                      corPostit === color.key ? "scale-125 ring-2 ring-red-500 shadow-md" : "opacity-75 hover:opacity-100 hover:scale-110"
                     }`}
                   />
                 ))}
               </div>
             </div>
 
-            {/* Category Select */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1 flex items-center gap-1">
-                <Tag className="w-3.5 h-3.5 text-amber-600" /> Categoria
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1 flex items-center gap-1">
+                <Tag className="w-3.5 h-3.5 text-red-500" /> Categoria
               </label>
               <select
                 value={categoria}
                 onChange={(e) => setCategoria(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-sm font-medium"
+                className="w-full px-3 py-2 bg-zinc-900 text-white border border-zinc-800 rounded-xl focus:ring-2 focus:ring-red-500 text-sm font-medium cursor-pointer"
               >
                 <option value="Geral">📌 Geral</option>
                 <option value="Trabalho">💼 Trabalho</option>
@@ -315,18 +310,18 @@ export const PostItModal: React.FC<PostItModalProps> = ({
           </div>
 
           {/* Modal Footer Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+              className="px-4 py-2.5 text-xs font-bold text-zinc-400 hover:text-white rounded-xl transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 text-xs font-extrabold text-white bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 rounded-xl shadow-lg shadow-red-950/60 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting
                 ? "Salvando..."

@@ -6,17 +6,23 @@ import { HeaderBar } from "@/components/HeaderBar";
 import { StatsBar } from "@/components/StatsBar";
 import { PostItCard } from "@/components/PostItCard";
 import { PostItModal } from "@/components/PostItModal";
+import { LoginModal } from "@/components/LoginModal";
 import { StickyNote, Plus, RefreshCw, AlertCircle, Sparkles } from "lucide-react";
 
 const STORAGE_KEY = "eletrozone_lembretes_v1";
 const SEEDED_KEY = "eletrozone_lembretes_seeded_v1";
 
 export default function Home() {
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [user, setUser] = useState<{ username: string; name: string } | null>(null);
+
+  // App state
   const [lembretes, setLembretes] = useState<Lembrete[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters & State
+  // Filters & View State
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [priorityFilter, setPriorityFilter] = useState("todas");
@@ -26,7 +32,44 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLembrete, setEditingLembrete] = useState<Lembrete | null>(null);
 
-  // Sync state to LocalStorage as safety backup
+  // Check Session
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated) {
+            setIsAuthenticated(true);
+            setUser(data.user);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao verificar sessão:", err);
+      }
+      setIsAuthenticated(false);
+      setUser(null);
+    };
+    checkSession();
+  }, []);
+
+  const handleLoginSuccess = (userData: { username: string; name: string }) => {
+    setIsAuthenticated(true);
+    setUser(userData);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error(err);
+    }
+    setIsAuthenticated(false);
+    setUser(null);
+  };
+
+  // Sync state to LocalStorage
   const syncToLocalStorage = (data: Lembrete[]) => {
     try {
       if (typeof window !== "undefined") {
@@ -37,7 +80,7 @@ export default function Home() {
     }
   };
 
-  // Seed default notes ONLY ONCE on first-ever load
+  // Seed default notes
   const seedDefaultLembretes = async () => {
     try {
       const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
@@ -95,7 +138,7 @@ export default function Home() {
     }
   };
 
-  // Fetch all lembretes from API & LocalStorage
+  // Fetch all lembretes
   const fetchLembretes = useCallback(async () => {
     try {
       setLoading(true);
@@ -113,7 +156,6 @@ export default function Home() {
         syncToLocalStorage(apiData);
         if (typeof window !== "undefined") localStorage.setItem(SEEDED_KEY, "true");
       } else if (localDataStr !== null) {
-        // If API returned empty but local storage has user's state (including empty array when user deleted all items)
         try {
           const parsed = JSON.parse(localDataStr);
           setLembretes(parsed);
@@ -121,16 +163,13 @@ export default function Home() {
           setLembretes([]);
         }
       } else if (!isAlreadySeeded) {
-        // First-time visit ONLY: seed default notes
         await seedDefaultLembretes();
       } else {
-        // User has previously visited and deleted all notes: keep empty!
         setLembretes([]);
         syncToLocalStorage([]);
       }
     } catch (err: any) {
       console.error(err);
-      // LocalStorage fallback on error
       if (typeof window !== "undefined") {
         const localDataStr = localStorage.getItem(STORAGE_KEY);
         if (localDataStr) {
@@ -149,13 +188,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetchLembretes();
-  }, [fetchLembretes]);
+    if (isAuthenticated) {
+      fetchLembretes();
+    }
+  }, [isAuthenticated, fetchLembretes]);
 
   // Toggle completion
   const handleToggleComplete = async (id: string, currentStatus: boolean) => {
     const nextStatus = !currentStatus;
-    // Optimistic update
     const updated = lembretes.map((item) =>
       item.id === id ? { ...item, concluido: nextStatus } : item
     );
@@ -176,7 +216,6 @@ export default function Home() {
   // Save (Create or Update)
   const handleSaveLembrete = async (input: CreateLembreteInput, id?: string) => {
     if (id) {
-      // Update
       const res = await fetch(`/api/lembretes/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -187,7 +226,6 @@ export default function Home() {
       if (res.ok) {
         updatedItem = await res.json();
       } else {
-        // Fallback update
         updatedItem = {
           id,
           titulo: input.titulo,
@@ -206,7 +244,6 @@ export default function Home() {
       setLembretes(newList);
       syncToLocalStorage(newList);
     } else {
-      // Create
       const res = await fetch("/api/lembretes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -217,7 +254,6 @@ export default function Home() {
       if (res.ok) {
         newItem = await res.json();
       } else {
-        // Fallback local creation if API unavailable
         newItem = {
           id: crypto.randomUUID(),
           titulo: input.titulo,
@@ -244,7 +280,6 @@ export default function Home() {
 
   // Delete
   const handleDeleteLembrete = async (id: string) => {
-    // Remove item and persist immediately
     const newList = lembretes.filter((item) => item.id !== id);
     setLembretes(newList);
     syncToLocalStorage(newList);
@@ -262,7 +297,7 @@ export default function Home() {
     }
   };
 
-  // Open modal handlers
+  // Modal actions
   const handleOpenNewModal = () => {
     setEditingLembrete(null);
     setIsModalOpen(true);
@@ -273,12 +308,11 @@ export default function Home() {
     setIsModalOpen(true);
   };
 
-  // Client-side filtering & search
+  // Filtering logic
   const filteredLembretes = useMemo(() => {
     const now = new Date();
 
     return lembretes.filter((item) => {
-      // Search filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchTitle = item.titulo.toLowerCase().includes(q);
@@ -287,12 +321,10 @@ export default function Home() {
         if (!matchTitle && !matchContent && !matchCat) return false;
       }
 
-      // Priority filter
       if (priorityFilter !== "todas" && item.prioridade !== priorityFilter) {
         return false;
       }
 
-      // Status filter
       if (statusFilter === "pendentes" && item.concluido) return false;
       if (statusFilter === "concluidos" && !item.concluido) return false;
       if (statusFilter === "atrasados") {
@@ -305,8 +337,27 @@ export default function Home() {
     });
   }, [lembretes, searchQuery, statusFilter, priorityFilter]);
 
+  // Render Login Modal if not authenticated
+  if (isAuthenticated === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
+        <LoginModal isOpen={true} onLoginSuccess={handleLoginSuccess} />
+      </div>
+    );
+  }
+
+  // Initial Auth Loading Screen
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#09090b] text-red-500">
+        <RefreshCw className="w-8 h-8 animate-spin mb-3" />
+        <p className="text-sm font-semibold text-zinc-400">Verificando autenticação Eletrozone...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col pb-12">
+    <div className="min-h-screen flex flex-col pb-12 bg-[#09090b] text-zinc-100">
       {/* Top Bar */}
       <HeaderBar
         searchQuery={searchQuery}
@@ -318,6 +369,8 @@ export default function Home() {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onOpenNewModal={handleOpenNewModal}
+        user={user}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -327,22 +380,22 @@ export default function Home() {
 
         {/* Loading Indicator */}
         {loading && (
-          <div className="flex flex-col items-center justify-center py-20 text-amber-900/60">
-            <RefreshCw className="w-8 h-8 animate-spin mb-3 text-amber-600" />
+          <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+            <RefreshCw className="w-8 h-8 animate-spin mb-3 text-red-500" />
             <p className="text-sm font-semibold">Carregando seus Post-its...</p>
           </div>
         )}
 
         {/* Error Indicator */}
         {error && !loading && (
-          <div className="p-4 bg-red-100 border border-red-300 text-red-800 rounded-xl flex items-center justify-between my-6">
+          <div className="p-4 bg-red-950/80 border border-red-800 text-red-200 rounded-xl flex items-center justify-between my-6">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
+              <AlertCircle className="w-5 h-5 text-red-500" />
               <span>{error}</span>
             </div>
             <button
               onClick={fetchLembretes}
-              className="px-3 py-1 bg-red-600 text-white font-bold rounded-lg text-xs hover:bg-red-700"
+              className="px-3 py-1 bg-red-600 text-white font-bold rounded-lg text-xs hover:bg-red-700 cursor-pointer"
             >
               Tentar Novamente
             </button>
@@ -351,12 +404,12 @@ export default function Home() {
 
         {/* Empty State */}
         {!loading && !error && filteredLembretes.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white/50 backdrop-blur-xs rounded-3xl border border-dashed border-amber-900/20 max-w-md mx-auto my-8">
-            <div className="p-4 bg-amber-100/70 text-amber-700 rounded-full mb-4">
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-[#121215]/80 backdrop-blur-xs rounded-3xl border border-dashed border-red-900/30 max-w-md mx-auto my-8 shadow-2xl">
+            <div className="p-4 bg-red-950/50 text-red-500 rounded-full mb-4 border border-red-900/40">
               <StickyNote className="w-12 h-12 stroke-[1.5]" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Nenhum Post-it encontrado</h3>
-            <p className="text-xs text-gray-600 mb-6 max-w-xs">
+            <h3 className="text-lg font-bold text-white mb-1">Nenhum Post-it encontrado</h3>
+            <p className="text-xs text-zinc-400 mb-6 max-w-xs">
               {searchQuery || statusFilter !== "todos" || priorityFilter !== "todas"
                 ? "Tente ajustar seus filtros de busca ou prioridade."
                 : "Você ainda não criou nenhum lembrete no quadro."}
@@ -364,17 +417,17 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleOpenNewModal}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-950/60 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Criar Novo Lembrete</span>
               </button>
               <button
                 onClick={seedDefaultLembretes}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs rounded-xl transition-all"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs rounded-xl transition-all cursor-pointer"
                 title="Inserir post-its de exemplo"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <Sparkles className="w-3.5 h-3.5 text-red-500" />
                 <span>Exemplos</span>
               </button>
             </div>
@@ -402,20 +455,20 @@ export default function Home() {
             {filteredLembretes.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-4 bg-white/90 backdrop-blur-xs rounded-xl border border-amber-900/10 shadow-xs hover:shadow-md transition-all"
+                className="flex items-center justify-between p-4 bg-[#121215]/90 backdrop-blur-xs rounded-xl border border-zinc-800 shadow-lg hover:border-red-900/50 transition-all"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <input
                     type="checkbox"
                     checked={item.concluido}
                     onChange={() => handleToggleComplete(item.id, item.concluido)}
-                    className="w-5 h-5 text-amber-600 rounded-md focus:ring-amber-500 cursor-pointer"
+                    className="w-5 h-5 text-red-600 rounded-md focus:ring-red-500 cursor-pointer"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h4
-                        className={`font-bold text-sm text-gray-900 truncate ${
-                          item.concluido ? "line-through text-gray-500" : ""
+                        className={`font-bold text-sm text-white truncate ${
+                          item.concluido ? "line-through text-zinc-500" : ""
                         }`}
                       >
                         {item.titulo}
@@ -423,36 +476,36 @@ export default function Home() {
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                           item.prioridade === "alta"
-                            ? "bg-rose-100 text-rose-800"
+                            ? "bg-rose-950 text-rose-300 border border-rose-800"
                             : item.prioridade === "media"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-emerald-100 text-emerald-800"
+                            ? "bg-amber-950 text-amber-300 border border-amber-800"
+                            : "bg-emerald-950 text-emerald-300 border border-emerald-800"
                         }`}
                       >
                         {item.prioridade}
                       </span>
                     </div>
                     {item.conteudo && (
-                      <p className="text-xs text-gray-600 truncate mt-0.5">{item.conteudo}</p>
+                      <p className="text-xs text-zinc-400 truncate mt-0.5">{item.conteudo}</p>
                     )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0 ml-4 text-xs">
                   {item.data_limite && (
-                    <span className="text-gray-500 hidden sm:inline">
+                    <span className="text-zinc-500 hidden sm:inline">
                       📅 {new Date(item.data_limite).toLocaleDateString("pt-BR")}
                     </span>
                   )}
                   <button
                     onClick={() => handleOpenEditModal(item)}
-                    className="px-2.5 py-1 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                    className="px-2.5 py-1 text-xs font-semibold text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-lg cursor-pointer"
                   >
                     Editar
                   </button>
                   <button
                     onClick={() => handleDeleteLembrete(item.id)}
-                    className="px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg"
+                    className="px-2.5 py-1 text-xs font-semibold text-red-400 bg-red-950/60 hover:bg-red-900/80 rounded-lg cursor-pointer"
                   >
                     Apagar
                   </button>
@@ -472,9 +525,9 @@ export default function Home() {
       />
 
       {/* Footer */}
-      <footer className="mt-12 py-6 border-t border-amber-900/10 text-center text-xs text-amber-900/60 font-medium">
+      <footer className="mt-12 py-6 border-t border-zinc-900 text-center text-xs text-zinc-500 font-medium">
         <p>Lembrete Eletrozone &copy; {new Date().getFullYear()} — Sistema Le Postiche</p>
-        <p className="text-[11px] mt-0.5">Alocado em lembrete.eletrozone.net.br | Powered by Turso DB</p>
+        <p className="text-[11px] mt-0.5 text-zinc-600">Alocado em lembrete.eletrozone.net.br | Tema Preto e Vermelho</p>
       </footer>
     </div>
   );

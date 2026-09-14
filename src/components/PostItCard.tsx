@@ -10,8 +10,7 @@ import {
   Edit3, 
   Trash2, 
   Tag, 
-  Calendar,
-  Sparkles
+  Calendar
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -31,37 +30,35 @@ export const PostItCard: React.FC<PostItCardProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
-  // Deterministic tilt angle based on ID hash for realistic corkboard look
+  // Deterministic tilt angle
   const getTiltAngle = (id: string) => {
     let hash = 0;
     for (let i = 0; i < id.length; i++) {
       hash = id.charCodeAt(i) + ((hash << 5) - hash);
     }
-    const angles = [-2, -1.2, 0.8, 1.5, -0.5, 2.2, -1.8];
+    const angles = [-1.8, -1, 0.5, 1.2, -0.6, 1.8, -1.2];
     return angles[Math.abs(hash) % angles.length];
   };
 
   const tiltAngle = getTiltAngle(lembrete.id);
 
-  // Handle completion toggle with confetti celebration on success
+  // Completion celebration
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!lembrete.concluido) {
       try {
         confetti({
-          particleCount: 40,
+          particleCount: 45,
           spread: 60,
           origin: { y: 0.7 },
-          colors: ['#10b981', '#f59e0b', '#3b82f6']
+          colors: ['#ef4444', '#10b981', '#f59e0b']
         });
-      } catch (err) {
-        // Fallback if canvas confetti fails
-      }
+      } catch (err) {}
     }
     onToggleComplete(lembrete.id, lembrete.concluido);
   };
 
-  // Due date status evaluation
+  // Due date check
   const evaluateDueDate = (dataLimiteStr: string | null) => {
     if (!dataLimiteStr) return null;
     const now = new Date();
@@ -70,8 +67,6 @@ export const PostItCard: React.FC<PostItCardProps> = ({
     if (isNaN(dueDate.getTime())) return null;
 
     const diffMs = dueDate.getTime() - now.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-
     const isOverdue = diffMs < 0 && !lembrete.concluido;
     const isToday = !isOverdue && dueDate.toDateString() === now.toDateString();
 
@@ -87,13 +82,11 @@ export const PostItCard: React.FC<PostItCardProps> = ({
       formattedDate,
       isOverdue,
       isToday,
-      diffHours,
     };
   };
 
   const dueInfo = evaluateDueDate(lembrete.data_limite);
 
-  // Map postit paper colors to CSS classes
   const postitColorClasses: Record<string, string> = {
     yellow: "postit-yellow",
     pink: "postit-pink",
@@ -105,25 +98,21 @@ export const PostItCard: React.FC<PostItCardProps> = ({
 
   const postitBg = postitColorClasses[lembrete.cor_postit] || "postit-yellow";
 
-  // Priority color details
   const priorityConfig = {
     baixa: {
       label: "Baixa",
-      icon: "🟢",
-      bgClass: "bg-emerald-100 text-emerald-800 border-emerald-300",
-      dotClass: "bg-emerald-500",
+      bgClass: "priority-baixa",
+      dotClass: "bg-emerald-400",
     },
     media: {
       label: "Média",
-      icon: "🟠",
-      bgClass: "bg-amber-100 text-amber-900 border-amber-300",
-      dotClass: "bg-amber-500",
+      bgClass: "priority-media",
+      dotClass: "bg-amber-400",
     },
     alta: {
       label: "Alta",
-      icon: "🔴",
-      bgClass: "bg-rose-100 text-rose-900 border-rose-400 font-bold",
-      dotClass: "bg-rose-600",
+      bgClass: "priority-alta",
+      dotClass: "bg-red-500",
     },
   };
 
@@ -139,65 +128,64 @@ export const PostItCard: React.FC<PostItCardProps> = ({
       style={{
         transform: `rotate(${tiltAngle}deg)`,
       }}
-      className={`group relative flex flex-col justify-between p-5 rounded-sm border-2 postit-shadow transition-all duration-300 hover:rotate-0 hover:scale-[1.02] hover:z-20 ${postitBg} ${
-        lembrete.concluido ? "opacity-75 grayscale-[20%]" : ""
+      className={`group relative flex flex-col justify-between p-5 rounded-2xl border-2 postit-shadow-dark transition-all duration-300 hover:rotate-0 hover:scale-[1.02] hover:z-20 ${postitBg} ${
+        lembrete.concluido ? "opacity-60 grayscale-[30%]" : ""
       } ${isDeleting ? "scale-0 opacity-0 transition-all duration-300" : ""}`}
     >
-      {/* Decorative Adhesive Tape or Push Pin at Top */}
+      {/* Decorative Red Tape at Top */}
       <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-        <div className="postit-tape flex items-center justify-center">
-          <div className="w-2 h-2 rounded-full bg-amber-400/40" />
+        <div className="postit-tape-red flex items-center justify-center">
+          <div className="w-2 h-2 rounded-full bg-red-500/40" />
         </div>
       </div>
 
       <div>
-        {/* Header Ribbon: Priority Badge & Category */}
+        {/* Header Ribbon: Priority & Category */}
         <div className="flex items-center justify-between gap-2 mb-3 pt-1">
           <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${currentPriority.bgClass} shadow-xs`}
-            title={`Prioridade ${currentPriority.label}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-xs ${currentPriority.bgClass}`}
           >
             <span className={`w-2 h-2 rounded-full ${currentPriority.dotClass} animate-pulse`} />
             {currentPriority.label}
           </span>
 
           {lembrete.categoria && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-700 bg-white/60 backdrop-blur-xs px-2 py-0.5 rounded border border-black/5">
-              <Tag className="w-3 h-3 text-gray-500" />
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-300 bg-zinc-900/80 px-2 py-0.5 rounded-md border border-zinc-800">
+              <Tag className="w-3 h-3 text-red-500" />
               {lembrete.categoria}
             </span>
           )}
         </div>
 
-        {/* Title and Completion Checkbox */}
+        {/* Title and Checkbox */}
         <div className="flex items-start gap-2.5 mb-2.5">
           <button
             onClick={handleToggle}
             type="button"
-            className="mt-0.5 text-gray-700 hover:text-emerald-600 transition-colors shrink-0 focus:outline-hidden"
+            className="mt-0.5 text-zinc-400 hover:text-emerald-400 transition-colors shrink-0 focus:outline-hidden cursor-pointer"
             title={lembrete.concluido ? "Desmarcar conclusão" : "Marcar como concluído"}
           >
             {lembrete.concluido ? (
-              <CheckCircle2 className="w-6 h-6 text-emerald-600 fill-emerald-100 transition-transform active:scale-90" />
+              <CheckCircle2 className="w-6 h-6 text-emerald-400 fill-emerald-950 transition-transform active:scale-90" />
             ) : (
-              <Circle className="w-6 h-6 text-gray-500 hover:text-emerald-600 transition-transform active:scale-90" />
+              <Circle className="w-6 h-6 text-zinc-500 hover:text-emerald-400 transition-transform active:scale-90" />
             )}
           </button>
 
           <h3
-            className={`text-lg font-bold text-gray-900 leading-snug break-words flex-1 ${
-              lembrete.concluido ? "completed-text text-gray-600" : ""
+            className={`text-base font-extrabold text-white leading-snug break-words flex-1 ${
+              lembrete.concluido ? "completed-text text-zinc-400" : ""
             }`}
           >
             {lembrete.titulo}
           </h3>
         </div>
 
-        {/* Note Content / Description */}
+        {/* Content */}
         {lembrete.conteudo && (
           <p
-            className={`text-sm text-gray-800 whitespace-pre-wrap leading-relaxed mb-4 font-sans ${
-              lembrete.concluido ? "line-through text-gray-500 opacity-80" : ""
+            className={`text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed mb-4 font-sans ${
+              lembrete.concluido ? "line-through text-zinc-500" : ""
             }`}
           >
             {lembrete.conteudo}
@@ -205,18 +193,17 @@ export const PostItCard: React.FC<PostItCardProps> = ({
         )}
       </div>
 
-      {/* Footer Details: Due Date & Action Buttons */}
-      <div className="mt-4 pt-3 border-t border-black/10 flex items-center justify-between gap-2 text-xs">
-        {/* Due Date Indicator */}
+      {/* Footer: Due date & Actions */}
+      <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-1.5 flex-wrap">
           {dueInfo ? (
             <div
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold ${
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ${
                 dueInfo.isOverdue
                   ? "bg-red-600 text-white animate-bounce shadow-sm"
                   : dueInfo.isToday
-                  ? "bg-amber-500 text-white font-bold"
-                  : "bg-black/5 text-gray-800"
+                  ? "bg-amber-500 text-black font-extrabold"
+                  : "bg-zinc-900/90 text-zinc-300 border border-zinc-800"
               }`}
               title={`Data Limite: ${dueInfo.formattedDate}`}
             >
@@ -228,26 +215,25 @@ export const PostItCard: React.FC<PostItCardProps> = ({
               ) : dueInfo.isToday ? (
                 <>
                   <Clock className="w-3.5 h-3.5 animate-spin" />
-                  <span>Vence Hoje ({dueInfo.formattedDate.split(" ")[1]})</span>
+                  <span>Vence Hoje</span>
                 </>
               ) : (
                 <>
-                  <Calendar className="w-3.5 h-3.5 text-gray-600" />
+                  <Calendar className="w-3.5 h-3.5 text-zinc-400" />
                   <span>{dueInfo.formattedDate}</span>
                 </>
               )}
             </div>
           ) : (
-            <span className="text-gray-500 italic text-[11px]">Sem data limite</span>
+            <span className="text-zinc-500 italic text-[11px]">Sem prazo</span>
           )}
         </div>
 
-        {/* Action Controls */}
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => onEdit(lembrete)}
             type="button"
-            className="p-1.5 rounded-full text-gray-700 hover:text-blue-700 hover:bg-black/5 transition-colors"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
             title="Editar Post-it"
           >
             <Edit3 className="w-4 h-4" />
@@ -257,24 +243,24 @@ export const PostItCard: React.FC<PostItCardProps> = ({
             <button
               onClick={() => setShowConfirmDelete(true)}
               type="button"
-              className="p-1.5 rounded-full text-gray-700 hover:text-red-700 hover:bg-black/5 transition-colors"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-950/40 transition-colors cursor-pointer"
               title="Apagar Post-it"
             >
               <Trash2 className="w-4 h-4" />
             </button>
           ) : (
-            <div className="flex items-center gap-1 bg-white/90 p-1 rounded-md border border-red-200 shadow-sm animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-lg border border-red-800/80 shadow-md">
               <button
                 onClick={handleDeleteConfirm}
                 type="button"
-                className="px-2 py-0.5 bg-red-600 text-white font-bold rounded text-[11px] hover:bg-red-700 transition-colors"
+                className="px-2 py-0.5 bg-red-600 text-white font-bold rounded text-[10px] hover:bg-red-700 cursor-pointer"
               >
                 Apagar
               </button>
               <button
                 onClick={() => setShowConfirmDelete(false)}
                 type="button"
-                className="px-1.5 py-0.5 text-gray-600 hover:text-gray-900 text-[11px]"
+                className="px-1.5 py-0.5 text-zinc-400 hover:text-white text-[10px] cursor-pointer"
               >
                 X
               </button>
